@@ -22,11 +22,9 @@ on:
 jobs:
   post-participation-report:
     runs-on: ubuntu-latest
-
-    # these permissions are needed by the action
-    permissions:
-      issues: write
-      pull-requests: write
+    # set this according to the timezone of your reports
+    env:
+      TZ: Asia/Singapore
 
     steps:
       - uses: insidewhy/action-geekbot-participation-report@v1

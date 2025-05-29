@@ -1,6 +1,6 @@
 {
   "name": "action-geekbot-participation-report",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Post a geekbot participation report to github",
   "main": "lib/index.js",
   "scripts": {

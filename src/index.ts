@@ -1,14 +1,30 @@
 import { getInput } from '@actions/core'
 
-export interface Options {
+interface Time {
+  hours: number
+  minutes: number
+}
+
+interface Options {
   geekbotToken: string
   slackToken: string
   slackChannel: string
   heading: string
   days: number
-  hours: number
-  minutes: number
+  time: Time
+  dueByTime?: Time
   workDays: Set<number>
+}
+
+function parseTime(name: string, str: string): Time {
+  if (!/^\d\d:\d\d$/.test(str)) throw new Error(`${name} should be in hh:mm format`)
+  const [hoursRaw, minutesRaw] = str.split(':')
+  const hours = parseInt(hoursRaw)
+  if (hours > 23) throw new Error('there are only 24 hours in a day')
+  const minutes = parseInt(minutesRaw)
+  if (minutes > 59) throw new Error('there are only 60 minutes in an hour')
+
+  return { hours, minutes }
 }
 
 function parseOptions(): Options {
@@ -21,16 +37,7 @@ function parseOptions(): Options {
   const days = daysRaw ? parseInt(daysRaw) : 7
 
   const timeRaw = getInput('time')
-  let hours = 9
-  let minutes = 0
-  if (timeRaw) {
-    if (!/^\d\d:\d\d$/.test(timeRaw)) throw new Error('time should be in hh:mm format')
-    const [hoursRaw, minutesRaw] = timeRaw.split(':')
-    hours = parseInt(hoursRaw)
-    if (hours > 23) throw new Error('there are only 24 hours in a day')
-    minutes = parseInt(minutesRaw)
-    if (minutes > 59) throw new Error('there are only 60 minutes in an hour')
-  }
+  const time = timeRaw ? parseTime('time', timeRaw) : { hours: 9, minutes: 0 }
 
   const workDaysRaw = getInput('work-days')
   let workDays = new Set([1, 2, 3, 4, 5])
@@ -38,7 +45,19 @@ function parseOptions(): Options {
     workDays = new Set(workDaysRaw.split('').map((v) => parseInt(v)))
   }
 
-  return { geekbotToken, slackToken, slackChannel, heading, days, hours, minutes, workDays }
+  const dueByTimeRaw = getInput('due-by-time')
+  const dueByTime = dueByTimeRaw ? parseTime('due-by-time', dueByTimeRaw) : undefined
+
+  return {
+    geekbotToken,
+    slackToken,
+    slackChannel,
+    heading,
+    days,
+    time,
+    dueByTime,
+    workDays,
+  }
 }
 
 function countWeekdays(startDate: Date, totalDays: number, workDays: Set<number>) {
@@ -60,8 +79,8 @@ export async function runGeekbotReport(options: Options): Promise<void> {
   const dayFrom = new Date()
   // include the current day so subtract (days - 1)
   dayFrom.setDate(dayFrom.getDate() - options.days + 1)
-  dayFrom.setHours(options.hours)
-  dayFrom.setMinutes(options.minutes)
+  dayFrom.setHours(options.time.hours)
+  dayFrom.setMinutes(options.time.minutes)
   const after = Math.floor(dayFrom.getTime() / 1_000)
 
   const response = await fetch(`https://api.geekbot.com/v1/reports?after=${after}`, {
@@ -74,14 +93,30 @@ export async function runGeekbotReport(options: Options): Promise<void> {
   if (!response.ok) {
     throw new Error('Could not fetch geekbot report')
   }
-  const reports = (await response.json()) as Array<{ member: { realname: string } }>
+  const reports = (await response.json()) as Array<{
+    timestamp: number
+    member: { realname: string }
+  }>
   const responseCountByName = new Map<string, number>()
+  const lateByName = new Map<string, number>()
   for (const report of reports) {
     responseCountByName.set(
       report.member.realname,
       (responseCountByName.get(report.member.realname) ?? 0) + 1,
     )
+
+    if (options.dueByTime) {
+      const reportTime = new Date(report.timestamp * 1_000)
+      if (
+        reportTime.getHours() > options.dueByTime.hours ||
+        (reportTime.getHours() === options.dueByTime.hours &&
+          reportTime.getMinutes() > options.dueByTime.minutes)
+      ) {
+        lateByName.set(report.member.realname, (lateByName.get(report.member.realname) ?? 0) + 1)
+      }
+    }
   }
+
   const weekDays = countWeekdays(dayFrom, options.days, options.workDays)
 
   const participants = Array.from(responseCountByName.entries()).sort((a, b) =>
@@ -94,7 +129,12 @@ export async function runGeekbotReport(options: Options): Promise<void> {
 
   for (const [name, count] of participants) {
     const percentage = Math.round((count / weekDays) * 100)
-    reportContent += `${`${name}:`.padEnd(namePadding)} ${percentage}%\n`
+    reportContent += `${`${name}:`.padEnd(namePadding)} ${percentage}%`
+    const lateCount = lateByName.get(name)
+    if (lateCount) {
+      reportContent += ` - late: ${lateCount}`
+    }
+    reportContent += '\n'
   }
   reportContent += '```'
 
