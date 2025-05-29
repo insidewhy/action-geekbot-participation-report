@@ -1,0 +1,4 @@
+/node_modules
+/doit.sh
+/.env.test
+tsconfig.tsbuildinfo

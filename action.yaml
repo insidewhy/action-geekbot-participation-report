@@ -1,0 +1,24 @@
+name: action-jira-story-point-charts
+description: Generate story point charts from jira issues and post them to slack
+author: insidewhy
+runs:
+  using: node20
+  main: lib/index.js
+inputs:
+  geekbot-token:
+    description: geekbot authorization token
+    required: true
+  slack-token:
+    description: Slack bot token
+    required: true
+  slack-channel:
+    description: channel id of slack channel to post to
+    required: true
+  days:
+    description: the number of days the report should cover, defaults to 7
+  time:
+    description: the time at which the report should start in hh:mm format, defaults to 09:00
+  work-days:
+    description: which days are work days as a string such as 12345 (for monday to friday), defaults to 12345
+  heading:
+    description: 'heading for the message, defaults to **Geekbot Participation Summary**'
