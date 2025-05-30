@@ -60,7 +60,7 @@ function parseOptions(): Options {
   }
 }
 
-function countWeekdays(startDate: Date, totalDays: number, workDays: Set<number>) {
+function countWorkDays(startDate: Date, totalDays: number, workDays: Set<number>) {
   let weekdays = 0
   const date = new Date(startDate)
 
@@ -117,19 +117,22 @@ export async function runGeekbotReport(options: Options): Promise<void> {
     }
   }
 
-  const weekDays = countWeekdays(dayFrom, options.days, options.workDays)
+  const workDayCount = countWorkDays(dayFrom, options.days, options.workDays)
 
-  const participants = Array.from(responseCountByName.entries()).sort((a, b) =>
-    a[0].localeCompare(b[0]),
+  const metrics = Array.from(responseCountByName.entries()).sort((a, b) => a[0].localeCompare(b[0]))
+
+  metrics.push(['Total', reports.length / responseCountByName.size])
+  lateByName.set(
+    'Total',
+    Array.from(lateByName.values()).reduce((sum, v) => sum + v, 0),
   )
-  const namePadding = Math.max(...participants.map(([name]) => name.length + 1))
 
+  const namePadding = Math.max(...metrics.map(([name]) => name.length + 1))
   let reportContent = `${options.heading}\n`
   reportContent += '```\n'
-
-  for (const [name, count] of participants) {
-    const percentage = Math.round((count / weekDays) * 100)
-    reportContent += `${`${name}:`.padEnd(namePadding)} ${percentage}%`
+  for (const [name, count] of metrics) {
+    const percentage = Math.round((count / workDayCount) * 100)
+    reportContent += `${`${name}:`.padEnd(namePadding)} ${(percentage + '%').padEnd(4)}`
     const lateCount = lateByName.get(name)
     if (lateCount) {
       reportContent += ` - late: ${lateCount}`
