@@ -14,10 +14,10 @@ inputs:
   slack-channel:
     description: channel id of slack channel to post to
     required: true
-  days:
+  duration:
     description: the number of days the report should cover, defaults to 7
-  time:
-    description: the time at which the report should start in hh:mm format, defaults to 09:00
+  start-time:
+    description: the time at which a reporting day starts in hh:mm format, defaults to 06:00
   due-by-time:
     description: the time at which a report is due by, if added will show late counts when available
   work-days:

@@ -10,8 +10,8 @@ interface Options {
   slackToken: string
   slackChannel: string
   heading: string
-  days: number
-  time: Time
+  duration: number
+  startTime: Time
   dueByTime?: Time
   workDays: Set<number>
 }
@@ -33,11 +33,11 @@ function parseOptions(): Options {
   const slackChannel = getInput('slack-channel', { required: true })
   const heading = getInput('heading') || '**Geekbot Participation Summary**'
 
-  const daysRaw = getInput('days')
-  const days = daysRaw ? parseInt(daysRaw) : 7
+  const durationRaw = getInput('duration')
+  const duration = durationRaw ? parseInt(durationRaw) : 7
 
-  const timeRaw = getInput('time')
-  const time = timeRaw ? parseTime('time', timeRaw) : { hours: 9, minutes: 0 }
+  const startTimeRaw = getInput('start-time')
+  const startTime = startTimeRaw ? parseTime('start-time', startTimeRaw) : { hours: 6, minutes: 0 }
 
   const workDaysRaw = getInput('work-days')
   let workDays = new Set([1, 2, 3, 4, 5])
@@ -53,34 +53,34 @@ function parseOptions(): Options {
     slackToken,
     slackChannel,
     heading,
-    days,
-    time,
+    duration,
+    startTime,
     dueByTime,
     workDays,
   }
 }
 
 function countWorkDays(startDate: Date, totalDays: number, workDays: Set<number>) {
-  let weekdays = 0
+  let workDayCount = 0
   const date = new Date(startDate)
 
   for (let i = 0; i < totalDays; i++) {
     const day = date.getDay()
     if (workDays.has(day)) {
-      ++weekdays
+      ++workDayCount
     }
     date.setDate(date.getDate() + 1)
   }
 
-  return weekdays
+  return workDayCount
 }
 
 export async function runGeekbotReport(options: Options): Promise<void> {
   const dayFrom = new Date()
   // include the current day so subtract (days - 1)
-  dayFrom.setDate(dayFrom.getDate() - options.days + 1)
-  dayFrom.setHours(options.time.hours)
-  dayFrom.setMinutes(options.time.minutes)
+  dayFrom.setDate(dayFrom.getDate() - options.duration + 1)
+  dayFrom.setHours(options.startTime.hours)
+  dayFrom.setMinutes(options.startTime.minutes)
   const after = Math.floor(dayFrom.getTime() / 1_000)
 
   const response = await fetch(`https://api.geekbot.com/v1/reports?after=${after}`, {
@@ -110,14 +110,17 @@ export async function runGeekbotReport(options: Options): Promise<void> {
       if (
         reportTime.getHours() > options.dueByTime.hours ||
         (reportTime.getHours() === options.dueByTime.hours &&
-          reportTime.getMinutes() > options.dueByTime.minutes)
+          reportTime.getMinutes() > options.dueByTime.minutes) ||
+        reportTime.getHours() < options.startTime.hours ||
+        (reportTime.getHours() === options.startTime.hours &&
+          reportTime.getMinutes() < options.startTime.minutes)
       ) {
         lateByName.set(report.member.realname, (lateByName.get(report.member.realname) ?? 0) + 1)
       }
     }
   }
 
-  const workDayCount = countWorkDays(dayFrom, options.days, options.workDays)
+  const workDayCount = countWorkDays(dayFrom, options.duration, options.workDays)
 
   const metrics = Array.from(responseCountByName.entries()).sort((a, b) => a[0].localeCompare(b[0]))
 
