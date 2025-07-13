@@ -75,14 +75,24 @@ function countWorkDays(startDate: Date, totalDays: number, workDays: Set<number>
   return workDayCount
 }
 
+const hoursDifference = (date: Date, referenceTime: Time): number =>
+  date.getHours() - referenceTime.hours + (date.getMinutes() - referenceTime.minutes) / 60
+
 export async function runGeekbotReport(options: Options): Promise<void> {
   const dayFrom = new Date()
-  // include the current day so subtract (days - 1)
-  dayFrom.setDate(dayFrom.getDate() - options.duration + 1)
+
+  // when there is a "due by time", include the current day in the report if
+  // the current time is after the due by time, otherwise include it when
+  // the current time is more than twelve hours from the start of the report
+  const includeCurrentDay = options.dueByTime
+    ? hoursDifference(dayFrom, options.dueByTime) >= 0
+    : hoursDifference(dayFrom, options.startTime) >= 12
+
+  dayFrom.setDate(dayFrom.getDate() - options.duration + (includeCurrentDay ? 1 : 0))
   dayFrom.setHours(options.startTime.hours)
   dayFrom.setMinutes(options.startTime.minutes)
-  const after = Math.floor(dayFrom.getTime() / 1_000)
 
+  const after = Math.floor(dayFrom.getTime() / 1_000)
   const response = await fetch(`https://api.geekbot.com/v1/reports?after=${after}`, {
     method: 'GET',
     headers: {
