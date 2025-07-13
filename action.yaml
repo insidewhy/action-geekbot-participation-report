@@ -14,13 +14,13 @@ inputs:
   slack-channel:
     description: channel id of slack channel to post to
     required: true
-  duration:
-    description: the number of days the report should cover, defaults to 7
   start-time:
     description: the time at which a reporting day starts in hh:mm format, defaults to 06:00
   due-by-time:
     description: the time at which a report is due by, if added will show late counts when available
   work-days:
     description: which days are work days as a string such as 12345 (for monday to friday), defaults to 12345
+  duration:
+    description: the number of work days the report should cover, defaults to the number of configured work days (i.e. one work week)
   heading:
     description: 'heading for the message, defaults to **Geekbot Participation Summary**'

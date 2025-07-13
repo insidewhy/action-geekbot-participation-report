@@ -45,16 +45,16 @@ jobs:
           geekbot-token: ${{ secrets.GEEKBOT_TOKEN }}
           slack-token: ${{ secrets.SLACK_TOKEN }}
           slack-channel: ${{ github.event.inputs.slack-channel || 'C42PZTP3ECZ' }}
-          # The rest of the parameters are optional, the following shows the defaults
-          # This is the number of days the report should cover, days not in
-          # work-days do not contribute to the report
-          duration: 7
           # The time to consider as the start of a day for a report, if the report
           # was triggered on a Thursday and the report duration is 7 days then all
           # reports from 6am on the prior Wednesday will be considered
           start-time: '06:00'
           # The days that represent work days, 0 being Sunday and 6 being Saturday
           work-days: '12345'
+          # The rest of the parameters are optional, the following shows the defaults
+          # This is the number of work days the report should cover, it defaults to
+          # the number of configured work days, e.g. 5 for '12345'
+          duration: 5
           # The heading to post above the report in slack mrdkwn format
           heading: '**Geekbot Participation Summary**'
           # When set to a string in hh:mm format then the number of late reports will
